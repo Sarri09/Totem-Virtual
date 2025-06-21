@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  coturn:
+    image: instrumentisto/coturn:latest
+    container_name: coturn
+    restart: unless-stopped
+    ports:
+      - "3478:3478"
+      - "3478:3478/udp"
+    command:
+      - turnserver
+      - "--no-cli"
+      - "--listening-port=3478"
+      - "--min-port=49152"
+      - "--max-port=65535"
+      - "--realm=server"
+      - "--user=${TURN_USERNAME}:${TURN_PASSWORD}"
+    env_file:
+      - .env
+
+  signal:
+    build: ./signal
+    container_name: signal-server
+    restart: unless-stopped
+    ports:
+      - "${SIGNAL_PORT}:3000"
+    depends_on:
+      - coturn
+    env_file:
+      - .env
+
+  mediasoup:
+    image: vanjoge/mediasoup-demo:v3
+    container_name: mediasoup-sfu
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+      - "4443:4443"
+      - "40000-40010:40000-40010/udp"
+    volumes:
+      - ./config.js:/server/config.js:ro
+      - ./certs:/server/certs:ro
+    depends_on:
+      - signal
